@@ -1,0 +1,48 @@
+// Function to generate task list for a specific sheet
+function generateTaskListForSheet(sheetName) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var allTasksSheet = ss.getSheetByName('All Tasks');
+  var name = ss.getSheetByName(sheetName).getRange('A3').getValue();
+  var sheet = ss.getSheetByName(sheetName);
+
+  // Assuming columns in 'All Tasks' are the same for all sheets
+  var allTasksData = allTasksSheet.getRange("A2:F1014").getValues();
+
+  var taskList = [];
+
+  for (var i = 0; i < allTasksData.length; i++) {
+    var taskName = allTasksData[i][2];
+    var taskDescription = allTasksData[i][4];
+    var assigneeName = allTasksData[i][3];
+    var dueDate = allTasksData[i][5];
+    var status = allTasksData[i][1];
+
+    if (assigneeName === name) {
+      var isChecked = status === true || status === 'TRUE';
+      taskList.push([isChecked, dueDate, taskName, taskDescription]);
+    }
+  }
+
+  // Clear the range in the sheet where you plan to insert the new values
+  sheet.getRange('B4:E1014').clear();
+
+  // Set the values in the sheet starting from column B
+  if (taskList.length > 0) {
+    var numRows = taskList.length;
+    var numCols = taskList[0].length;
+    sheet.getRange(4, 2, numRows, numCols).setValues(taskList);
+  }
+
+  // Insert checkboxes in column B based on the status
+  setCheckboxes(sheet, taskList.length, taskList);
+
+  return taskList;
+}
+
+
+function onButtonClick() {
+  var activeSheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var sheetName = activeSheet.getName();
+  
+  generateTaskListForSheet(sheetName);
+}
