@@ -1,0 +1,292 @@
+function createVisualCalendar(startDate, endDate, startDayOfWeek) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+
+  // Clear existing data
+    sheet.getRange(1, 3, sheet.getMaxRows(), sheet.getMaxColumns() - 2).clearContent();
+
+  const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+  var eventData = new Map();
+
+  // Validate input dates
+    if (!(startDate instanceof Date) || isNaN(startDate.getTime()) || !(endDate instanceof Date) || isNaN(endDate.getTime()) || startDate > endDate) {
+   // Logger.log('Invalid start or end date.');
+   // Logger.log('startDate:', startDate);
+   // Logger.log('endDate:', endDate);
+    return;
+  }
+
+  // Calculate the number of months to display
+  const numMonths = (endDate.getFullYear() - startDate.getFullYear()) * 12 + (endDate.getMonth() - startDate.getMonth()) + 1;
+
+ // Logger.log('number of months: ' + numMonths);
+
+  for (let monthIndex = 0; monthIndex < numMonths; monthIndex++) {
+     startColumnIndex = monthIndex * 8 + 4; // Adjusted start column index
+    if (startColumnIndex == 1) { 
+      startColumnIndex = startColumnIndex + 2
+    }
+    const newStartDate = new Date(startDate.getFullYear(), startDate.getMonth() + monthIndex, 1);
+    const monthHeader = [months[newStartDate.getMonth()]];
+    sheet.getRange(2, startColumnIndex, 1, 1).setValues([monthHeader]);
+
+    sheet.getRange(2, startColumnIndex, 1, 1).setValues([monthHeader])
+      .setFontSize(16)
+      .setFontFamily("Georgia")
+      .setFontWeight("bold")
+      .setFontColor("black")
+      .setBackground("#fff2cc");
+
+    // Add headers for days of the week
+    const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    sheet.getRange(3, startColumnIndex, 1, 7).setValues([daysOfWeek])
+      .setFontWeight("bold").setBackground("#d9d9d9").setHorizontalAlignment("center");
+    
+    colorCoding = formatEventDays(0)
+    
+ 
+    // Add calendar entries
+    var calendarData = generateCalendarData(newStartDate, startDayOfWeek);
+   // Logger.log('length of array ' + calendarData.length)
+    const rowNumber = 4
+    for (let rowIdx = 0; rowIdx < calendarData.length; rowIdx++) {
+      if (calendarData[rowIdx]) {
+        const values = [calendarData[rowIdx]];  // Wrap the array in another array to make it 2D
+        //Logger.log('Row ' + (rowIdx + 4) + ': ' + calendarData[rowIdx].join(', '));
+       // Logger.log('Row Length ' + calendarData.length);
+        sheet.getRange(rowIdx + 4, startColumnIndex, 1, calendarData[rowIdx].length).setValues(values).setHorizontalAlignment("center");
+      }  
+    }  
+  }
+
+  colorCodeSpecificWords(colorCoding)
+}
+
+// Rest of your code remains unchanged
+
+
+function generateCalendarData(startDate, startDayOfWeek) {
+  const calendarData = [];
+  let currentDate = new Date(startDate);
+  currentDate.setDate(1); // Start from the first day of the month
+  var eventData = formatEventDays()
+  
+  // Adjust start day of the week
+  const daysToSkip = (currentDate.getDay() - startDayOfWeek + 7) % 7;
+  currentDate.setDate(currentDate.getDate() - daysToSkip);
+
+  let row = [];
+  let fullDates = [];
+  let eventsRow = [];
+
+  for (let col = 0; col < 7; col++) {
+      if (currentDate.getMonth() === startDate.getMonth()) {
+        row.push(currentDate.getDate());
+        kd = formatDateKeys(currentDate); 
+        if (eventData.get(kd)) {
+        //  Logger.log('eventData in eventdata  ' + eventData.get(kd));
+          eventsRow.push(eventData.get(kd)); 
+        } else {
+          eventsRow.push("")
+        }
+        fullDates.push(currentDate);
+
+      } else {
+        row.push(null);
+        eventsRow.push(null)
+        fullDates.push(null);
+
+      }
+      currentDate.setDate(currentDate.getDate() + 1);
+  }
+
+  calendarData.push(row);
+  calendarData.push(eventsRow)
+  
+
+  // Continue adding rows for the remaining weeks in the month
+  while (currentDate.getMonth() === startDate.getMonth()) {
+    row = [];
+    fullDates = []; 
+    let eventsRow = [];
+
+
+    for (let col = 0; col < 7; col++) {
+      if (currentDate.getMonth() === startDate.getMonth()) {
+        row.push(currentDate.getDate());
+        kd = formatDateKeys(currentDate); 
+        if (eventData.get(kd)) {
+          //Logger.log('eventData in eventdata  ' + eventData.get(kd));
+          eventsRow.push(eventData.get(kd)); 
+        } else {
+          eventsRow.push("")
+        }
+        fullDates.push(currentDate);
+      } else {
+        row.push(null);
+        fullDates.push(null);
+        eventsRow.push(null)
+      }
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    //calendarData.push(null);
+    calendarData.push(row);
+    calendarData.push(eventsRow);
+
+  }
+  
+  return calendarData;
+}
+
+
+function testCreateVisualCalendar() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const startDateValue = sheet.getRange('B2').getValue();
+  const endDateValue = sheet.getRange('B3').getValue();
+
+  // Convert values to Date objects
+  const startDate = new Date(startDateValue);
+  const endDate = new Date(endDateValue);
+
+  createVisualCalendar(startDate, endDate, 0);
+}
+
+
+function formatEventDays(returnnum) { 
+
+  //takes all the events and turns them into strings to be formatted for the calendar 
+  //returns a map with each date mapping to a string 
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var calendarEvents = spreadsheet.getSheetByName("Calendar Events");
+  
+  var dataRange = calendarEvents.getDataRange();
+  var values = dataRange.getValues();
+
+  //Logger.log(values)
+
+  var eventData = new Map(); 
+  var colorCoding = new Map(); 
+
+  for (var i = 2; i < values.length; i++) { // Assuming the first row contains headers
+    var eventName = values[i][0]; // Assuming column A contains event names
+    var date = values[i][3];
+    var chair = values[i][2]; // Assuming column C contains chair names
+    var time = values[i][4]; // Assuming column E contains time
+    var location = values[i][5]; // Assuming column F contains location
+
+    var formattedEvent = ""; 
+    formattedEvent = formatEventHelper(eventName, time, location, chair);
+    colorCoding.set(formattedEvent,chair);
+    var keyDate = formatDateKeys(date); 
+
+    if (eventData.has(keyDate)) {
+        var currentDayEvents = eventData.get(keyDate); 
+        var newData = currentDayEvents + formattedEvent; 
+        eventData.set(keyDate, newData)
+    } else {
+        eventData.set(keyDate, formattedEvent)
+    }
+    // Set the background color based on the chair
+    //cell.setBackground(getChairColor(chair));
+    
+      // You can do something with the formatted event, such as logging it or updating another sheet.
+    //Logger.log('eventData in eventdata creation ' + eventData.get(date));
+
+
+  }
+    if(returnnum == 0) {
+      return colorCoding;
+    } 
+    return eventData
+  }
+
+  
+
+
+
+function formatEventHelper(eventName, time, location, chair) { 
+  const formattedTime = time ? formatTime(time) : '';
+  const timeAndLocation = (formattedTime && location) ? `(${formattedTime}, @ ${location})` : (formattedTime ? `(${formattedTime})` : (location ? `(@ ${location})` : ''));
+
+  // Create the formatted event string
+  const formattedEvent = `${eventName}\n${timeAndLocation}`;
+
+  return formattedEvent;
+}
+
+
+function formatDateKeys(dateInput){
+  var date =  new Date(dateInput);
+
+  var key = ""; 
+  day = date.getDate();
+  month = date.getMonth();
+
+  key = month + "/" + day; 
+  return key
+}
+
+
+function formatTime(time) {
+  if (!(time instanceof Date) || isNaN(time.getTime())) {
+    return ''; // Return an empty string if time is not a valid Date object
+  }
+
+  return Utilities.formatDate(time, Session.getScriptTimeZone(), 'h:mm a');
+}
+
+ function colorCodeSpecificWords(colorCoding) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Calendar");
+
+  const range = sheet.getDataRange();
+  const values = range.getValues();
+  colorCoding = formatEventDays(0)
+
+  for (const [word, colorKey] of colorCoding.entries()) {
+      Logger.log(word)
+
+  }
+
+
+  // Specify the words and their corresponding colors
+  const colorMap = {
+    'Social': '#ffe5a0',
+    'Education': '#d4edbc',
+    'Chessed': '#ffdaea',
+    'Shabbat': '#ffc8aa',
+    'Fundraising': '#ffcfc9',
+    'Collab': '#bfe1f6',
+    'Treasurer': '#47ff00',
+    "Outside of Kedma": '#e6cff2'
+  };
+
+  for (let i = 0; i < values.length; i++) {
+    for (let j = 0; j < values[i].length; j++) {
+      const cellValue = values[i][j];
+      if (typeof cellValue === 'string') {
+        const richTextValue = SpreadsheetApp.newRichTextValue().setText(cellValue);
+        Logger.log(cellValue.toString())
+        // Iterate through colorCoding and apply color to matching words
+        for (const [word, colorKey] of colorCoding.entries()) {
+          //Logger.log('am I even getting here? ' + word)
+          if (colorMap.hasOwnProperty(colorKey)) {
+            //Logger.log('am I even getting here? ')
+            var regex = new RegExp(word, 'gi');  // 'gi' for global and case-insensitive matching
+            let match;
+            while ((match = regex.exec(cellValue)) !== null) {
+             // Logger.log('am I even getting here? ' + colorKey)
+              var start = match.index;
+              var end = start + match[0].length;
+              Logger.log('Matching: ' + match[0] + ', Color: ' + colorKey);
+
+              richTextValue.setTextStyle(start, end, SpreadsheetApp.newTextStyle().setForegroundColor(colorMap[colorKey]).build());
+            }
+          }
+        }
+
+        sheet.getRange(i + 1, j + 1).setRichTextValue(richTextValue.build());
+      }
+    }
+  }
+} 
+
