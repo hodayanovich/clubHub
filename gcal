@@ -1,0 +1,105 @@
+const calendarId = "8qa4pfcdcpno41r01h78eldq0s@group.calendar.google.com";
+const calendarId2 = "b504260c2c96e7c42d5712cee563b0ca36d65e237e85bbf0c1ca4b90ceafe018@group.calendar.google.com";
+const uniqueEventSuffix = "[BOARDCAL]";
+const dataRange = "A3:H";
+
+function deleteAutoCreatedEvents() {
+  var eventCal = CalendarApp.getCalendarById(calendarId);
+  var startOfCurrentYear = new Date(new Date().getFullYear(), 0, 1);
+  var endOfCurrentYear = new Date(new Date().getFullYear(), 11, 31)
+  var events = eventCal.getEvents(startOfCurrentYear, endOfCurrentYear);
+  for(var i=0; i < events.length; i++) {
+    var ev = events[i];
+    var title = ev.getTitle();
+    if (title.indexOf(uniqueEventSuffix) >-1) {
+      ev.deleteEvent();
+    }
+  }
+}
+
+function addEventsToCalendar() {
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var calendarEvents = spreadsheet.getSheetByName("Calendar Events");
+  
+  var dataRange = calendarEvents.getDataRange();
+  var values = dataRange.getValues();
+
+  var eventCal = CalendarApp.getCalendarById(calendarId);
+  var otherCal = CalendarApp.getCalendarById(calendarId2)
+
+
+  Logger.log(values)
+
+  // deleteAutoCreatedEvents();
+  
+  for (var i = 2; i < values.length; i++) {
+    //Logger.log("lalalalala")
+    Logger.log(values[i][0] + values[i][4])
+    
+    if(values[i][1] && (values[i][7] == "kedma event" || values[i][7] == "collaboration w club" )){ 
+
+      //only if an event is confirmed we put it on the calendar
+
+      var dateCol = values[i][3]; 
+      var timeCol = values[i][4]
+      var name = values[i][0]; 
+      var loc = values[i][5];
+
+
+      Logger.log( "IS IT ALL DAY " + timeCol)
+      Logger.log("Date: " + dateCol + " Name: " + name + " location: " + loc)
+
+
+      //var eventTitle = `${name} ${uniqueEventSuffix}`;
+
+
+      if(values[i][7] == "collaboration w club") { 
+        if (timeCol == ""){ 
+          var date = new Date(dateCol)
+          otherCal.createAllDayEvent(name, date)
+        } else { 
+          var date = createDateFromTimeAndDate(timeCol, dateCol, false); 
+          var endDate = createDateFromTimeAndDate(timeCol, dateCol, true);
+          otherCal.createEvent(name,date,endDate);
+        }
+      } else { 
+         if (timeCol == ""){ 
+          var date = new Date(dateCol)
+          eventCal.createAllDayEvent(name, date)
+        } else { 
+          var date = createDateFromTimeAndDate(timeCol, dateCol, false); 
+          var endDate = createDateFromTimeAndDate(timeCol, dateCol, true);
+          eventCal.createEvent(name,date,endDate);
+
+      }
+
+      
+    }; 
+  } 
+}
+}
+
+function createDateFromTimeAndDate(time, date, endDate) {
+
+  // Extract date components
+  var year = date.getFullYear();
+  var month = date.getMonth();
+  var day = date.getDate();
+
+  // Extract time components
+  var hours = time.getHours();
+  var minutes = time.getMinutes();
+  var seconds = time.getSeconds();
+
+  // Create a new Date object using the extracted components
+  var combinedDate = new Date(year, month, day, hours, minutes, seconds);
+
+  if(endDate == true) {
+      var endDate = new Date(combinedDate.getTime() + (2 * 60 * 60 * 1000)); // 2 hours in milliseconds
+      return endDate; 
+  }
+
+  Logger.log('Combined Date:', combinedDate);
+
+  return combinedDate;
+}
