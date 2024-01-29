@@ -1,0 +1,134 @@
+function isValidValue(value, rule) {
+  // Check if the value is valid according to the data validation rule
+  if (!rule) {
+    return true; // No data validation rule; any value is considered valid
+  } else {
+    var criteria = rule.getCriteriaType();
+    if (criteria == SpreadsheetApp.DataValidationCriteria.VALUE_IN_LIST) {
+      var validValues = rule.getCriteriaValues();
+      return validValues.includes(value);
+    }
+    // You can add more criteria checks as needed
+  }
+  return true;
+}
+
+function sendAssignmentEmail(row, assigneeName, taskName) {
+  // Assuming the "Board Members" sheet is the second sheet (index 1)
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var boardMembersSheet = spreadsheet.getSheetByName("Board Members");
+  var allTasksSheet = spreadsheet.getSheetByName('All Tasks') // Get the name from cell B1
+  // Assuming names are in column A and emails in column B
+  var nameColumn = 1;
+  var emailColumn = 6;
+
+  var lastRow = boardMembersSheet.getLastRow();
+  var nameRange = boardMembersSheet.getRange(2, nameColumn, lastRow - 1, 1);
+  var emailRange = boardMembersSheet.getRange(2, emailColumn, lastRow - 1, 1);
+
+  var names = nameRange.getValues().flat();
+  var emails = emailRange.getValues().flat();
+
+  var description = allTasksSheet.getRange(row, 5).getValue();
+  var dueDate = allTasksSheet.getRange(row, 6).getValue();
+
+
+  // Find the email associated with the assignee name
+  var assigneeIndex = names.indexOf(assigneeName);
+  if (assigneeIndex !== -1) {
+    var emailAddress = emails[assigneeIndex];
+
+    
+    // Send the email
+    var subject = 'Task Assignment';
+    var body = 'You have been assigned to the task: ' + taskName;
+    if(description && dueDate){
+      body = 'You have been assigned to the task: ' + taskName + "\n" + "- " + description + "\n" + "Due: " + dueDate; 
+    }
+    if(description || dueDate){
+      if(description){ 
+        body = 'You have been assigned to the task: ' + taskName + "\n" + "- " + description;
+      } 
+      if(dueDate){ 
+        body = 'You have been assigned to the task: ' + taskName + "\n" + "due: " + dueDate;
+      }
+    }
+
+
+    MailApp.sendEmail({
+      to: emailAddress,
+      subject: subject,
+      body: body
+    });
+  } else {
+    Logger.log('Assignee not found in Board Members sheet');
+  }
+
+    allTasksSheet.getRange('A10').setValue('');
+
+}
+
+/* function onEdit(e) {
+  var sheet = e.source.getSheetByName('All Tasks'); // Replace 'YourSheetName' with the actual sheet name
+  var range = e.range;
+  var colIndex = range.getColumn();
+  var rowIndex = range.getRow();
+
+  // Assuming the person's email is in column A and task name is in column B
+  if (colIndex === 3 && rowIndex > 1) {
+    var name = sheet.getRange(rowIndex, 3).getValue();
+    var taskName = sheet.getRange(rowIndex, 2).getValue();
+
+    // Send the email
+    sendAssignmentEmail(name, taskName);
+  }
+} */
+
+function notify() { 
+  //notify button 
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var allTasksSheet = spreadsheet.getSheetByName('All Tasks')
+  var row = spreadsheet.getSheetByName('All Tasks').getRange('A10').getValue(); // Get the name from cell B1
+  var name = allTasksSheet.getRange(row, 4).getValue();
+  var taskName = allTasksSheet.getRange(row, 3).getValue();
+  sendAssignmentEmail(row, name, taskName);
+
+}
+
+function sendAssignmentEmailTest() {
+    var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    var name = spreadsheet.getSheetByName('All Tasks').getRange('G7').getValue(); // Get the name from cell B1
+    var taskName = spreadsheet.getSheetByName('All Tasks').getRange('H7').getValue(); // Get the name from cell B1
+    sendAssignmentEmail(name, taskName);
+
+}
+
+function onEdit(e) {
+  //WORK ON THIS!!!!
+  // Get the active sheet
+  var sheet = e.source.getSheetByName('All Tasks'); // Replace 'YourSheetName' with the name of your sheet
+
+  // Get the active range
+  var range = e.range;
+
+  // Check if the edited cell is in the checkbox column (adjust the column index as needed)
+  if (range.getColumn() == 2) { // Assuming checkboxes are in column B
+    var isChecked = e.value == 'TRUE';
+    if(isChecked) { 
+      var row = range.getRow(); 
+      
+      //var crossOutRange = ['row:row']
+      var rangeList = sheet.getRangeList([row]);
+      rangeList.setFontLine('line-through')
+
+
+    }    
+
+    // Move the row to the bottom if the checkbox is checked
+    if (isChecked) {
+      var lastRow = sheet.getRange(sheet.getLastRow(), 2).getNextDataCell(SpreadsheetApp.Direction.UP).getRow();
+      var destinationRange = sheet.getRange(lastRow + 1, 1, 1, sheet.getLastColumn());
+      range.moveTo(destinationRange);
+    }
+  }
+}
